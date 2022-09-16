@@ -9,18 +9,23 @@
   <body>
     <template id="project-input">
       <form>
+        <!-- 타이틀 -->
         <div class="form-control">
           <label for="title">Title</label>
           <input type="text" id="title" />
         </div>
-        <div class="form-contro">
+        <!-- 설명 -->
+        <div class="form-control">
           <label for="description">Description</label>
           <textarea id="description" cols="30" rows="10"></textarea>
         </div>
+        <!-- 인원 수 -->
         <div class="form-control">
           <label for="people">People</label>
           <input type="number" id="people" value="1" min="1" />
         </div>
+        <!-- 버튼 -->
+        <button type="submit">프로젝트 추가</button>
       </form>
     </template>
     <div id="app"></div>

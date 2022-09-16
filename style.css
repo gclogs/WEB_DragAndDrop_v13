@@ -29,3 +29,23 @@ textarea:focus {
   outline: none;
   background: #fff5f9;
 }
+
+/* 버튼 스타일 */
+button {
+  font: inherit;
+  background: #ff0062;
+  border: 1px solid #ff0062;
+  cursor: pointer;
+  color: white;
+  padding: 0.75rem 1rem;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:hover,
+button:active {
+  background: #a80041;
+  border-color: #a80041;
+}

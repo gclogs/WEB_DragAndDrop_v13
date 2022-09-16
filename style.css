@@ -1,3 +1,31 @@
-h1, h2 {
+h1,
+h2 {
   font-family: Lato;
+}
+
+/* 입력칸 세팅 */
+label,
+input,
+textarea {
+  display: block;
+}
+
+label {
+  font-weight: bold;
+}
+
+input,
+textarea {
+  font: inherit;
+  padding: 0.2rem 0.4rem;
+  width: 100%;
+  max-width: 30rem;
+  border: 1px solid #ccc;
+}
+
+/* 입력이 포커싱 됐을때 이벤트 */
+input:focus,
+textarea:focus {
+  outline: none;
+  background: #fff5f9;
 }

@@ -49,3 +49,79 @@ button:active {
   background: #a80041;
   border-color: #a80041;
 }
+
+/* projects 구조 스타일 */
+.projects {
+  margin: 1rem;
+  border: 1px solid #ff0062;
+}
+
+/* projects 엘리먼트 커스텀 */
+.projects h2 {
+  margin: 0;
+  color: white;
+}
+
+.projects ul {
+  list-style: none;
+  margin: 0;
+  padding: 1rem;
+}
+
+.projects li {
+  box-shadow: 1px 1px 8px rgba(0, 0, 0, 0.26);
+  padding: 1rem;
+  margin: 1rem;
+}
+
+.projects li h2 {
+  color: #ff0062;
+  margin: 0.5rem 0;
+}
+
+.projects li h3 {
+  color: #575757;
+  font-size: 1rem;
+}
+
+.project li p {
+  margin: 0;
+}
+
+.projects header {
+  background: #ff0062;
+  height: 3.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* finished 프로젝트 스타일 */
+#finished-projects li h2 {
+  color: #0044ff;
+}
+
+#finished-projects .droppable {
+  background: #d6e1ff;
+}
+
+#finished-projects {
+  border-color: #0044ff;
+}
+
+#finished-projects header {
+  background: #0044ff;
+}
+
+/* droppable 옵션 커스텀 */
+.droppable {
+  background: #ffe3ee;
+}
+
+/* 사용자 입력폼 커스텀 */
+#user-input {
+  margin: 1rem;
+  padding: 1rem;
+  border: 1px solid #ff0062;
+  background: #f7f7f7;
+}

@@ -7,7 +7,7 @@ appDiv.innerHTML = `<h1>TypeScript Starter</h1>`;
 
 class ProjectState {
   private listeners: any[] = []; // 폼에서 받아온 값들을 리스너 배열에 넣을거임
-  private projects: any[] = []; //
+  private projects: any[] = [];
   private static instance: ProjectState;
 
   private constructor() {}
@@ -19,16 +19,33 @@ class ProjectState {
     }
     // 없으면
     this.instance = new ProjectState(); // 인스턴스로 받아옴
-    return this.instance; // 나 간다용
+    return this.instance; // 나는 간다용!
   }
 
   /**
-   * 함수를 받아올거임
+   * 리스너를 추가하기 위한 함수
+   * listeners 배열에 listenerFn 의 인자값으로 함수를 받아온 데이터를 푸시
    */
   addListener(listenerFn: Function) {
     this.listeners.push(listenerFn);
   }
+
+  addProject(title: string, description: string, numOfPeople: number) {
+    const newProject = {
+      id: Math.random().toString(), // 난수로 생성한 값을 고유 id로 할당
+      title: title,
+      description: description,
+      people: numOfPeople,
+    };
+    this.projects.push(newProject); // 설계된 객체를 projects 배열에 푸시
+
+    for (const listenerFn of this.listeners) {
+      listenerFn(this.projects.slice()); // slice() 메서드로 원본을 건들지 않고 새로운 복사본을 만들어 listenerFn 에 저장 -> 리스너 추가
+    }
+  }
 }
+
+const projectState = ProjectState.getInstace();
 
 /**
  * 검증 인터페이스를 만들어서 내부 프로퍼티들을 사용해
@@ -82,44 +99,61 @@ function validate(input: Validatable) {
       return true;
     }
   }
-
-  console.log(input);
 }
 
 class ProjectList {
   templateElement: HTMLTemplateElement;
-  element: HTMLElement; // 여기선 폼 엘리먼트가 아니라 그냥 엘리먼트
-  assignedProjects = [];
+  element: HTMLElement;
+  assignedProjects: any[];
 
-  /**
-   * project-list를 가진 아이디를 가져옴
-   */
   constructor(private type: 'active' | 'finished') {
     this.templateElement = document.getElementById(
       'project-list'
     )! as HTMLTemplateElement;
+    this.assignedProjects = [];
+
     const importedNode = document.importNode(
       this.templateElement.content,
       true
     );
     this.element = importedNode.firstElementChild as HTMLFormElement;
-    this.element.id = `${type}-projects`; // element의 아이디에 type 튜플중 선택된 값을 가져오며 projects를 구분 지음. ex) active-projects / finished-projects
+    this.element.id = `${type}-projects`;
+
+    /**
+     * 프로젝트 상태 추가하기
+     * projectState가 인스턴스 되므로 전역에서 사용할 수 있음.
+     *
+     * 접근하면서 private 프로퍼티도 역시 접근 가능
+     */
+    projectState.addListener((projects: any[]) => {
+      this.assignedProjects = projects; // ProjectState 클래스의 projects 변수에 담겨있는 값을 assignedProjects에 할당
+      this.renderProjects();
+    });
 
     this.renderContent();
     this.attach();
   }
 
-  /**
-   * <template id="project-list"> 를 렌더링 하기 위해 만든 renderContent 함수
-   */
+  private renderProjects() {
+    const listElement = document.getElementById(
+      `${this.type}-projects-list`
+    )! as HTMLUListElement; // 해당 아이디를 갖고 있는 순서없는 목록 요소를 할당
+
+    for (const projectItem of this.assignedProjects) {
+      const listItem = document.createElement('li'); // li 태그를 가지고 있는 새로운 요소 생성
+      listItem.textContent = projectItem.title; // li 태그의 textContent에 projectItem의 title 할당
+      listElement.appendChild(listItem); // listElement에 listItem을 추기
+    }
+  }
+
   private renderContent() {
     const listId = `${this.type}-projects-list`;
-    this.element.querySelector('ul')!.id = listId; // ul 태그 id에 listId의 값을 추가 ex) <ul id="{type}-projects-list">
-    this.element.querySelector('h2')!.textContent = this.type.toUpperCase(); // h2 태그의 textContent는 대문자로
+    this.element.querySelector('ul')!.id = listId;
+    this.element.querySelector('h2')!.textContent = this.type.toUpperCase();
   }
 
   private attach() {
-    appDiv.insertAdjacentElement('beforeend', this.element); // 여기선 맨 아래에 위치해야 하기 때문에 beforeend 값을 줌.
+    appDiv.insertAdjacentElement('beforeend', this.element);
   }
 }
 
@@ -162,8 +196,70 @@ class ProjectInput {
     appDiv.insertAdjacentElement('afterbegin', this.formElement);
   }
 
+  /**
+   * 튜플로 string, string, number 타입을 반환하는데
+   * title, description, people을 위해 짜여진 구조를 반환
+   */
+  private gatherUserInput(): [string, string, number] | void {
+    const enteredTitle = this.titleInputElement.value;
+    const enteredDescripiton = this.descriptionInputElement.value;
+    const enteredPeople = this.peopleInputElement.value;
+
+    /**
+     * 검증을 위한 Validatable 인터페이스 타입을 가지고 설계
+     */
+    const ValiTitle: Validatable = {
+      value: enteredTitle,
+      required: true,
+    };
+    const ValiDescription: Validatable = {
+      value: enteredDescripiton,
+      required: true,
+      min: 1,
+    };
+    const ValiPeople: Validatable = {
+      value: enteredPeople,
+      required: true,
+    };
+
+    /**
+     * 검증할 변수들을 validate 함수로 검증하고,
+     * 검증이 완료되면 각 값들을 반환
+     *
+     * 검증이 안되면 다시 해
+     */
+    if (
+      !validate(ValiTitle) &&
+      !validate(ValiDescription) &&
+      !validate(ValiPeople)
+    ) {
+      alert('Invalid input, plz try again');
+      console.log('Invalid input, plz try again');
+      return;
+    } else {
+      return [enteredTitle, enteredDescripiton, +enteredPeople];
+    }
+  }
+
   private submitHandler(event: Event) {
     event.preventDefault();
+
+    const userInput = this.gatherUserInput(); // 검증된 입력값들을 받아오고
+    if (Array.isArray(userInput)) {
+      // userInput 변수가 배열 타입이라면
+      const [title, description, people] = userInput; // 구조 분해 할당으로 각 데이터를 쪼개서 가져옴
+      projectState.addProject(title, description, people);
+      this.clearInput();
+    }
+  }
+
+  /**
+   * 작업을 마쳤다면 모든 인풋 value들을 공란으로 초기화
+   */
+  private clearInput() {
+    this.titleInputElement.value = '';
+    this.descriptionInputElement.value = '';
+    this.peopleInputElement.value = '';
   }
 
   private configure() {

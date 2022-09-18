@@ -5,55 +5,89 @@ import './style.css';
 const appDiv: HTMLElement = document.getElementById('app');
 appDiv.innerHTML = `<h1>TypeScript Starter</h1>`;
 
+/**
+ * 열거형으로 상태 변환을 구체적으로 나타냄
+ * 코드가 단순해지고 가독성이 좋음
+ *
+ * enum 키워드를 사용하는 이유는 상수 정의와 무분별한 상속 방지를 위함
+ */
+enum ProjectStatus {
+  Active,
+  Finished,
+}
+
+/**
+ * 프로젝트 생성 구조 클래스를 구현
+ * 새로운 객체를 만들때마다 번거로움과 유연한 코드를 만들기 위함
+ *
+ * 즉 항상 동일한 객체의 구축 방법을 취하기 위해 클래스를 구현한거
+ */
+class Project {
+  constructor(
+    public id: string,
+    public title: string,
+    public description: string,
+    public people: number,
+    public status: ProjectStatus
+  ) {}
+}
+
+/**
+ * Project 클래스를 타입으로 갖는 items 배열 생성
+ * 반환값은 void 아무것도 없음
+ *
+ * Listener 타입은 Project 클래스 생성자의 구조를 가져야 함
+ * 타입을 더 명확히 하고 컴파일시 예외를 최대한 없애기 위함.
+ */
+type Listener = (items: Project[]) => void;
+
 class ProjectState {
-  private listeners: any[] = []; // 폼에서 받아온 값들을 리스너 배열에 넣을거임
-  private projects: any[] = [];
+  /**
+   * any 타입이던 private 필드들이
+   * 각 타입을 가지면서 무엇을 가지는지 명확해짐
+   */
+  private listeners: Listener[] = [];
+  private projects: Project[] = [];
   private static instance: ProjectState;
 
   private constructor() {}
 
   static getInstace() {
     if (this.instance) {
-      // instance 변수에 데이터가 있으면
-      return this.instance; // 그대로 반환
+      return this.instance;
     }
-    // 없으면
-    this.instance = new ProjectState(); // 인스턴스로 받아옴
-    return this.instance; // 나는 간다용!
+
+    this.instance = new ProjectState();
+    return this.instance;
   }
 
   /**
-   * 리스너를 추가하기 위한 함수
-   * listeners 배열에 listenerFn 의 인자값으로 함수를 받아온 데이터를 푸시
+   * listeners 배열이 Listener 타입이기 때문에
+   * 매개변수 타입을 Listener로 맞춰야함
    */
-  addListener(listenerFn: Function) {
+  addListener(listenerFn: Listener) {
     this.listeners.push(listenerFn);
   }
 
   addProject(title: string, description: string, numOfPeople: number) {
-    const newProject = {
-      id: Math.random().toString(), // 난수로 생성한 값을 고유 id로 할당
-      title: title,
-      description: description,
-      people: numOfPeople,
-    };
-    this.projects.push(newProject); // 설계된 객체를 projects 배열에 푸시
+    const newProject = new Project(
+      Math.random().toString(),
+      title,
+      description,
+      numOfPeople,
+      ProjectStatus.Active // 첫 프로젝트 생성은 active 프로젝트에 생성
+    );
+
+    this.projects.push(newProject);
 
     for (const listenerFn of this.listeners) {
-      listenerFn(this.projects.slice()); // slice() 메서드로 원본을 건들지 않고 새로운 복사본을 만들어 listenerFn 에 저장 -> 리스너 추가
+      listenerFn(this.projects.slice());
     }
   }
 }
 
 const projectState = ProjectState.getInstace();
 
-/**
- * 검증 인터페이스를 만들어서 내부 프로퍼티들을 사용해
- * 입력값들이 개발자가 원하는 방식으로 들어오는지 검증하기 위해 만듦.
- *
- * 옵셔널 연산자를 사용해 있어도 되고 없어도 되는 프로퍼티를 만듦.
- * value 프로퍼티는 반드시 필요함
- */
 interface Validatable {
   value: string;
   required?: boolean;
@@ -63,42 +97,40 @@ interface Validatable {
   max?: number;
 }
 
-function validate(input: Validatable) {
-  if (input.required) {
-    // input 요소중 required 프로퍼티가 true라면
-    input.value.toString().trim().length !== 0; // input의 value의 길이가 공란이 되면 안됨. 즉 공백이면 안됨
-    return true; // ok
+function validate(validatableInput: Validatable) {
+  let isValid = true;
+  if (validatableInput.required) {
+    isValid = isValid && validatableInput.value.toString().trim().length !== 0;
+  }
+  if (
+    validatableInput.minLength != null &&
+    typeof validatableInput.value == 'string'
+  ) {
+    isValid =
+      isValid && validatableInput.value.length > validatableInput.minLength;
+  }
+  if (
+    validatableInput.maxLength != null &&
+    typeof validatableInput.value == 'string'
+  ) {
+    isValid =
+      isValid && validatableInput.value.length < validatableInput.maxLength;
   }
 
-  if (input.minLength != null && typeof input.value == 'string') {
-    // 최소 길이(minLength)에 값이 있고, 값의 타입이 string 이라면,
-    if (input.value.length > input.minLength) {
-      // value 길이가 mingLength 보다 커야함
-      return true;
-    }
+  if (
+    validatableInput.min != null &&
+    typeof validatableInput.value == 'number'
+  ) {
+    isValid = isValid && validatableInput.value > validatableInput.min;
   }
-  if (input.maxLength != null && typeof input.value == 'string') {
-    // 최대 길이(maxLength)에 값이 있고, 값의 타입이 string 이라면,
-    if (input.value.length > input.maxLength) {
-      // value 길이가 maxLength 보다 커야함
-      return true;
-    }
+  if (
+    validatableInput.max != null &&
+    typeof validatableInput.value == 'number'
+  ) {
+    isValid = isValid && validatableInput.value < validatableInput.max;
   }
 
-  if (input.min != null && typeof input.value == 'number') {
-    // 최솟값이 있고, 값의 타입이 number라면,
-    if (input.value > input.min) {
-      // value의 값이 min 보다 커야함
-      return true;
-    }
-  }
-  if (input.max != null && typeof input.value == 'number') {
-    // 최댓값이 있고, 값의 타입이 number라면,
-    if (input.value > input.max) {
-      // value의 값이 max 보다 커야함
-      return true;
-    }
-  }
+  return isValid;
 }
 
 class ProjectList {
@@ -107,6 +139,7 @@ class ProjectList {
   assignedProjects: any[];
 
   constructor(private type: 'active' | 'finished') {
+    // ProjectStatus를 사용할 수 있지만 보다 명확한 타입 명시가 필요하므로 생략 -> 문자가 들어가야 함. 상수가 들어가면 좀 복잡해짐
     this.templateElement = document.getElementById(
       'project-list'
     )! as HTMLTemplateElement;
@@ -120,13 +153,20 @@ class ProjectList {
     this.element.id = `${type}-projects`;
 
     /**
-     * 프로젝트 상태 추가하기
-     * projectState가 인스턴스 되므로 전역에서 사용할 수 있음.
-     *
-     * 접근하면서 private 프로퍼티도 역시 접근 가능
+     * 여기도 역시 projects 배열이 Project 클래스를 타입으로 가지고 있기 때문에
+     * 매개변수 타입을 Project로 받아야함
      */
-    projectState.addListener((projects: any[]) => {
-      this.assignedProjects = projects; // ProjectState 클래스의 projects 변수에 담겨있는 값을 assignedProjects에 할당
+    projectState.addListener((projects: Project[]) => {
+      // 원하는 프로젝트에 출력하기 위해서 active에 들어갈 것인지 finished에 들어갈 것인지 필터링을 할거임
+      const filterProjects = projects.filter((prjItem) => {
+        if (this.type === 'active') {
+          // 목록의 타입이 active라면
+          return prjItem.status === ProjectStatus.Active; // 나 건들지마
+        }
+        return prjItem.status === ProjectStatus.Finished; // 그게 아니면 나는 finished야
+      });
+
+      this.assignedProjects = projects;
       this.renderProjects();
     });
 
@@ -137,12 +177,15 @@ class ProjectList {
   private renderProjects() {
     const listElement = document.getElementById(
       `${this.type}-projects-list`
-    )! as HTMLUListElement; // 해당 아이디를 갖고 있는 순서없는 목록 요소를 할당
+    )! as HTMLUListElement;
+
+    // 중복을 피하기 위해 모든 목록 요소의 항목을 제거하여, 불필요한 리렌더링을 피함
+    listElement.innerHTML = '';
 
     for (const projectItem of this.assignedProjects) {
-      const listItem = document.createElement('li'); // li 태그를 가지고 있는 새로운 요소 생성
-      listItem.textContent = projectItem.title; // li 태그의 textContent에 projectItem의 title 할당
-      listElement.appendChild(listItem); // listElement에 listItem을 추기
+      const listItem = document.createElement('li');
+      listItem.textContent = projectItem.title;
+      listElement.appendChild(listItem);
     }
   }
 
@@ -196,18 +239,11 @@ class ProjectInput {
     appDiv.insertAdjacentElement('afterbegin', this.formElement);
   }
 
-  /**
-   * 튜플로 string, string, number 타입을 반환하는데
-   * title, description, people을 위해 짜여진 구조를 반환
-   */
   private gatherUserInput(): [string, string, number] | void {
     const enteredTitle = this.titleInputElement.value;
     const enteredDescripiton = this.descriptionInputElement.value;
     const enteredPeople = this.peopleInputElement.value;
 
-    /**
-     * 검증을 위한 Validatable 인터페이스 타입을 가지고 설계
-     */
     const ValiTitle: Validatable = {
       value: enteredTitle,
       required: true,
@@ -222,12 +258,6 @@ class ProjectInput {
       required: true,
     };
 
-    /**
-     * 검증할 변수들을 validate 함수로 검증하고,
-     * 검증이 완료되면 각 값들을 반환
-     *
-     * 검증이 안되면 다시 해
-     */
     if (
       !validate(ValiTitle) &&
       !validate(ValiDescription) &&
@@ -244,18 +274,14 @@ class ProjectInput {
   private submitHandler(event: Event) {
     event.preventDefault();
 
-    const userInput = this.gatherUserInput(); // 검증된 입력값들을 받아오고
+    const userInput = this.gatherUserInput();
     if (Array.isArray(userInput)) {
-      // userInput 변수가 배열 타입이라면
-      const [title, description, people] = userInput; // 구조 분해 할당으로 각 데이터를 쪼개서 가져옴
+      const [title, description, people] = userInput;
       projectState.addProject(title, description, people);
       this.clearInput();
     }
   }
 
-  /**
-   * 작업을 마쳤다면 모든 인풋 value들을 공란으로 초기화
-   */
   private clearInput() {
     this.titleInputElement.value = '';
     this.descriptionInputElement.value = '';

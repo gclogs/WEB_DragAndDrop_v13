@@ -645,7 +645,7 @@ const projectState = ProjectState.getInstace();
 - 더 설명하면 내용이 길어지므로 `싱글톤이 무엇`이고 `왜 사용하는지`만 짚고 넘어 가겠다.
 - 패턴에 대해서는 따로 링크를 걸어두겠다.
 
-### b. 입력값 검증하기
+### b. 검증 로직 구현
 
 ```ts
 /**
@@ -805,6 +805,135 @@ class ProjectList {
 - li 요소를 가진 listItem을 할당 받는다.
 
 - `active | finished` 둘다 내가 입력한 값이 들어간 것을 확인할 수 있다.
+
+### c. 프로젝트 입력값들 검증하기
+
+```ts
+class ProjectInput {
+  templateElement: HTMLTemplateElement;
+  hostDivElement: HTMLDivElement;
+  formElement: HTMLFormElement;
+
+  titleInputElement: HTMLInputElement;
+  descriptionInputElement: HTMLInputElement;
+  peopleInputElement: HTMLInputElement;
+
+  constructor() {
+    this.templateElement = document.getElementById(
+      'project-input'
+    )! as HTMLTemplateElement;
+
+    const importedNode = document.importNode(
+      this.templateElement.content,
+      true
+    );
+    this.formElement = importedNode.firstElementChild as HTMLFormElement;
+    this.formElement.id = 'user-input';
+
+    this.titleInputElement = this.formElement.querySelector(
+      '#title'
+    ) as HTMLInputElement;
+    this.descriptionInputElement = this.formElement.querySelector(
+      '#description'
+    ) as HTMLInputElement;
+    this.peopleInputElement = this.formElement.querySelector(
+      '#people'
+    ) as HTMLInputElement;
+
+    this.configure();
+    this.attach();
+  }
+
+  private attach() {
+    appDiv.insertAdjacentElement('afterbegin', this.formElement);
+  }
+
+  /**
+   * 튜플로 string, string, number 타입을 반환하는데
+   * title, description, people을 위해 짜여진 구조를 반환
+   */
+  private gatherUserInput(): [string, string, number] | void {
+    const enteredTitle = this.titleInputElement.value;
+    const enteredDescripiton = this.descriptionInputElement.value;
+    const enteredPeople = this.peopleInputElement.value;
+
+    /**
+     * 검증을 위한 Validatable 인터페이스 타입을 가지고 설계
+     */
+    const ValiTitle: Validatable = {
+      value: enteredTitle,
+      required: true,
+    };
+    const ValiDescription: Validatable = {
+      value: enteredDescripiton,
+      required: true,
+      min: 1,
+    };
+    const ValiPeople: Validatable = {
+      value: enteredPeople,
+      required: true,
+    };
+
+    /**
+     * 검증할 변수들을 validate 함수로 검증하고,
+     * 검증이 완료되면 각 값들을 반환
+     *
+     * 검증이 안되면 다시 해
+     */
+    if (
+      !validate(ValiTitle) &&
+      !validate(ValiDescription) &&
+      !validate(ValiPeople)
+    ) {
+      alert('Invalid input, plz try again');
+      console.log('Invalid input, plz try again');
+      return;
+    } else {
+      return [enteredTitle, enteredDescripiton, +enteredPeople];
+    }
+  }
+
+  private submitHandler(event: Event) {
+    event.preventDefault();
+
+    const userInput = this.gatherUserInput(); // 검증된 입력값들을 받아오고
+    if (Array.isArray(userInput)) {
+      // userInput 변수가 배열 타입이라면
+      const [title, description, people] = userInput; // 구조 분해 할당으로 각 데이터를 쪼개서 가져옴
+      projectState.addProject(title, description, people);
+      this.clearInput();
+    }
+  }
+
+  /**
+   * 작업을 마쳤다면 모든 인풋 value들을 공란으로 초기화
+   */
+  private clearInput() {
+    this.titleInputElement.value = '';
+    this.descriptionInputElement.value = '';
+    this.peopleInputElement.value = '';
+  }
+
+  private configure() {
+    this.formElement.addEventListener('submit', this.submitHandler.bind(this));
+  }
+}
+```
+
+> 1. 검증 함수 구현
+
+- `gatherUserInput` 함수를 만들어, 이 함수를 통해 입력값들을 검증할거임
+  - `title, description, people` 등 짜여진 구조를 통해 검증을 하기 때문에 함수 리턴 타입을 튜플로 줄건데 `[string, string, number]` 로 줄거임
+  - 입력값들의 value 값만 가져와 `entered 변수`를 만들고 `Validate 변수` 를 따로 만들어 `validate 검증 함수` 에서 검증을 하고, 모두 정상적으로 통과되면
+  - `entered 변수`를 반환
+
+> 2. 프로젝트 목록 출력
+
+- `submitHandler` 로 이제 프로젝트 추가시 목록에 출력 해줄거임
+  - `userInput 변수` 가 `gatherUserInput` 함수를 받아오고
+  - 구조 분해 할당을 통해 각각 리턴된 데이터들을 가져옴
+  - `projectState 인스턴스(클래스)`에 구조 분해 할당으로 리턴된 데이터들을 `projects 변수`인 배열에 추가 하고
+  - 입력된 값들은 공란으로 초기화
 
 # 참고자료
 

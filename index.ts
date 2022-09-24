@@ -5,23 +5,11 @@ import './style.css';
 const appDiv: HTMLElement = document.getElementById('app');
 appDiv.innerHTML = `<h1>TypeScript Starter</h1>`;
 
-/**
- * 열거형으로 상태 변환을 구체적으로 나타냄
- * 코드가 단순해지고 가독성이 좋음
- *
- * enum 키워드를 사용하는 이유는 상수 정의와 무분별한 상속 방지를 위함
- */
 enum ProjectStatus {
   Active,
   Finished,
 }
 
-/**
- * 프로젝트 생성 구조 클래스를 구현
- * 새로운 객체를 만들때마다 번거로움과 유연한 코드를 만들기 위함
- *
- * 즉 항상 동일한 객체의 구축 방법을 취하기 위해 클래스를 구현한거
- */
 class Project {
   constructor(
     public id: string,
@@ -32,20 +20,9 @@ class Project {
   ) {}
 }
 
-/**
- * Project 클래스를 타입으로 갖는 items 배열 생성
- * 반환값은 void 아무것도 없음
- *
- * Listener 타입은 Project 클래스 생성자의 구조를 가져야 함
- * 타입을 더 명확히 하고 컴파일시 예외를 최대한 없애기 위함.
- */
 type Listener = (items: Project[]) => void;
 
 class ProjectState {
-  /**
-   * any 타입이던 private 필드들이
-   * 각 타입을 가지면서 무엇을 가지는지 명확해짐
-   */
   private listeners: Listener[] = [];
   private projects: Project[] = [];
   private static instance: ProjectState;
@@ -61,10 +38,6 @@ class ProjectState {
     return this.instance;
   }
 
-  /**
-   * listeners 배열이 Listener 타입이기 때문에
-   * 매개변수 타입을 Listener로 맞춰야함
-   */
   addListener(listenerFn: Listener) {
     this.listeners.push(listenerFn);
   }
@@ -75,7 +48,7 @@ class ProjectState {
       title,
       description,
       numOfPeople,
-      ProjectStatus.Active // 첫 프로젝트 생성은 active 프로젝트에 생성
+      ProjectStatus.Active
     );
 
     this.projects.push(newProject);
@@ -139,7 +112,6 @@ class ProjectList {
   assignedProjects: any[];
 
   constructor(private type: 'active' | 'finished') {
-    // ProjectStatus를 사용할 수 있지만 보다 명확한 타입 명시가 필요하므로 생략 -> 문자가 들어가야 함. 상수가 들어가면 좀 복잡해짐
     this.templateElement = document.getElementById(
       'project-list'
     )! as HTMLTemplateElement;
@@ -152,10 +124,6 @@ class ProjectList {
     this.element = importedNode.firstElementChild as HTMLFormElement;
     this.element.id = `${type}-projects`;
 
-    /**
-     * 여기도 역시 projects 배열이 Project 클래스를 타입으로 가지고 있기 때문에
-     * 매개변수 타입을 Project로 받아야함
-     */
     projectState.addListener((projects: Project[]) => {
       // 원하는 프로젝트에 출력하기 위해서 active에 들어갈 것인지 finished에 들어갈 것인지 필터링을 할거임
       const filterProjects = projects.filter((prjItem) => {

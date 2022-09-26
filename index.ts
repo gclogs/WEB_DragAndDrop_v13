@@ -106,23 +106,71 @@ function validate(validatableInput: Validatable) {
   return isValid;
 }
 
-class ProjectList {
+/**
+ * 컴포넌트라는 추상 클래스 즉 설계도를 주는 클래스를 만들어,
+ * 중복적인 코드 제거 및 재사용성의 효율성을 높이기 위해 만든 클래스
+ *
+ * 이렇게 따로 추상 클래스를 만들어 놓으면 유지보수도 좋고 협업할 때 '이것을 필요로 하는구나' 라고 즉각 알 수 있다.
+ *
+ * 추상 클래스 / 인터페이스 개념을 알고 있다면 좋겠지만 알고 있어도 이해하지 못하는 경우가 대다수라
+ * 따로 부가적으로 설명하겠음
+ */
+abstract class Component<T extends HTMLElement, U extends HTMLElement> {
   templateElement: HTMLTemplateElement;
-  element: HTMLElement;
-  assignedProjects: any[];
+  // hostDivElement: T; // 호스트 요소
+  element: U; // 폼 요소
 
-  constructor(private type: 'active' | 'finished') {
+  /**
+   * templateId: <div id="templateId">
+   * insertAtStart: afterbegin | beforeend
+   * newElement: form element
+   */
+  constructor(templateId: string, insertAtStart: boolean, newElement: string) {
     this.templateElement = document.getElementById(
-      'project-list'
+      templateId
     )! as HTMLTemplateElement;
-    this.assignedProjects = [];
 
     const importedNode = document.importNode(
       this.templateElement.content,
       true
     );
-    this.element = importedNode.firstElementChild as HTMLFormElement;
-    this.element.id = `${type}-projects`;
+    this.element = importedNode.firstElementChild as U;
+    if (newElement) {
+      // 새 요소에 어떠한 값이 들어가야 한다면
+      this.element.id = newElement; // 새 요소로 받아온 값을 요소 id에 할당
+    }
+
+    this.attach(insertAtStart);
+  }
+
+  /**
+   * 최초 삽입 즉 요소의 앞에 놓을 것인지 요소 후에 넣을 것인지 결정
+   * appDiv 호스트 요소가 받아온 불값에 따라 연산이 달라짐
+   *
+   */
+  private attach(insertAtBeginning: boolean) {
+    appDiv.insertAdjacentElement(
+      insertAtBeginning ? 'afterbegin' : 'beforeend',
+      this.element
+    );
+  }
+
+  abstract renderContent(): void;
+  abstract configure(): void;
+}
+
+class ProjectList extends Component<HTMLDivElement, HTMLElement> {
+  assignedProjects: Project[];
+
+  constructor(private type: 'active' | 'finished') {
+    /**
+     * 컴포넌트 클래스를 상속 받았으면 무조건 슈퍼를 해주어야함.
+     * 그 안에 재사용 가능한 인자들을 작성하면 됨.
+     *
+     * 전 코드와 다른점은 많지만 같은 로직이다.
+     */
+    super('project-list', false, `${type}-projests`);
+    this.assignedProjects = [];
 
     projectState.addListener((projects: Project[]) => {
       // 원하는 프로젝트에 출력하기 위해서 active에 들어갈 것인지 finished에 들어갈 것인지 필터링을 할거임
@@ -133,13 +181,11 @@ class ProjectList {
         }
         return prjItem.status === ProjectStatus.Finished; // 그게 아니면 나는 finished야
       });
-
       this.assignedProjects = projects;
       this.renderProjects();
     });
 
     this.renderContent();
-    this.attach();
   }
 
   private renderProjects() {
@@ -157,37 +203,31 @@ class ProjectList {
     }
   }
 
-  private renderContent() {
+  /**
+   * 추상클래스로 받아온 추상 메서드이기 때문에 private와 같은 접근 제한자 사용은 안된다
+   * 왜 안될지는... 따로 답변 달아두도록 하겠음
+   */
+  renderContent() {
     const listId = `${this.type}-projects-list`;
     this.element.querySelector('ul')!.id = listId;
     this.element.querySelector('h2')!.textContent = this.type.toUpperCase();
   }
 
-  private attach() {
-    appDiv.insertAdjacentElement('beforeend', this.element);
-  }
+  /**
+   * 컴포넌트 클래스 내부의 메소드이고, 추상 클래스라 꼭 필요한 추상 메서드이지만
+   * ProjectList의 클래스 내부에서 그닥 중요하지 않다면, 로직 작성 없이 생성만 해두자
+   */
+  configure() {}
 }
 
-class ProjectInput {
-  templateElement: HTMLTemplateElement;
-  hostDivElement: HTMLDivElement;
-  formElement: HTMLFormElement;
-
+class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {
   titleInputElement: HTMLInputElement;
   descriptionInputElement: HTMLInputElement;
   peopleInputElement: HTMLInputElement;
+  formElement = this.element; // formElement 라는 것을 명시적으로 알려주기 위해 추상클래스인 컴포넌트 내부의 private 변수인 this.element를 가져옴
 
   constructor() {
-    this.templateElement = document.getElementById(
-      'project-input'
-    )! as HTMLTemplateElement;
-
-    const importedNode = document.importNode(
-      this.templateElement.content,
-      true
-    );
-    this.formElement = importedNode.firstElementChild as HTMLFormElement;
-    this.formElement.id = 'user-input';
+    super('project-input', true, `user-input`);
 
     this.titleInputElement = this.formElement.querySelector(
       '#title'
@@ -201,10 +241,6 @@ class ProjectInput {
 
     this.configure();
     this.attach();
-  }
-
-  private attach() {
-    appDiv.insertAdjacentElement('afterbegin', this.formElement);
   }
 
   private gatherUserInput(): [string, string, number] | void {
@@ -256,9 +292,15 @@ class ProjectInput {
     this.peopleInputElement.value = '';
   }
 
-  private configure() {
+  attach() {
+    appDiv.insertAdjacentElement('afterbegin', this.formElement);
+  }
+
+  configure() {
     this.formElement.addEventListener('submit', this.submitHandler.bind(this));
   }
+
+  renderContent() {}
 }
 
 const prjInput = new ProjectInput();

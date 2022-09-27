@@ -117,18 +117,31 @@ function validate(validatableInput: Validatable) {
  */
 abstract class Component<T extends HTMLElement, U extends HTMLElement> {
   templateElement: HTMLTemplateElement;
-  // hostDivElement: T; // 호스트 요소
+  hostElement: T; // 호스트 요소
   element: U; // 폼 요소
 
   /**
    * templateId: <div id="templateId">
+   * hostElement: <div id="hostId">
    * insertAtStart: afterbegin | beforeend
    * newElement: form element
+   *
+   *
+   * 1번째 인자 : single-project 아이디를 가진 템플릿 요소
+   * 2번째 인자 : app 아이디를 가진 요소
+   * 3번째 인자 : true라면 afterbegin 이고 false면 beforeend
+   * 4번째 인자 : 어떠한 요소에 추가되는 id
    */
-  constructor(templateId: string, insertAtStart: boolean, newElement: string) {
+  constructor(
+    templateId: string,
+    hostId: string,
+    insertAtStart: boolean,
+    newElement: string
+  ) {
     this.templateElement = document.getElementById(
       templateId
     )! as HTMLTemplateElement;
+    this.hostElement = document.getElementById(hostId)! as T;
 
     const importedNode = document.importNode(
       this.templateElement.content,
@@ -145,11 +158,16 @@ abstract class Component<T extends HTMLElement, U extends HTMLElement> {
 
   /**
    * 최초 삽입 즉 요소의 앞에 놓을 것인지 요소 후에 넣을 것인지 결정
-   * appDiv 호스트 요소가 받아온 불값에 따라 연산이 달라짐
+   * 전역 appDiv를 사용할려고 했으나 호스팅 되어야할 요소가 따로 필요하게 됨.
+   * ul 목록에 li 목록이 딸려오는 것처럼 호스트 요소를 만듦으로써 app 아이디에 어떠한 element를 딸려오게 만들어야 됨.
    *
+   * ex.
+   * <div id="app">
+   *  <div id="app_box"></div>
+   * </div>
    */
   private attach(insertAtBeginning: boolean) {
-    appDiv.insertAdjacentElement(
+    this.hostElement.insertAdjacentElement(
       insertAtBeginning ? 'afterbegin' : 'beforeend',
       this.element
     );
@@ -157,6 +175,47 @@ abstract class Component<T extends HTMLElement, U extends HTMLElement> {
 
   abstract renderContent(): void;
   abstract configure(): void;
+}
+
+/**
+ * active와 finished 박스안에 추가될 아이템 클래스
+ * 이 아이템은 active 박스에서 처음 생성 되지만,
+ * 드래그를 통해 finished 박스 안에도 들어갈 수 있음
+ */
+class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
+  private project: Project;
+
+  /**
+   * 게터 메서드
+   */
+  get persons() {
+    if (this.project.people === 1) {
+      return '1 person';
+    } else {
+      return `${this.project.people} persons`;
+    }
+  }
+
+  constructor(hostId: string, project: Project) {
+    super('single-project', hostId, false, project.id);
+    this.project = project;
+
+    this.configure();
+    this.renderContent();
+  }
+
+  /**
+   * 렌더링될 콘텐츠들을 할당함
+   * h2 태그 : 제목
+   * h3 태그 : 설명
+   * p 태그 : 인원 수
+   */
+  renderContent() {
+    this.element.querySelector('h2')!.textContent = this.project.title;
+    this.element.querySelector('h3')!.textContent = this.project.description;
+    this.element.querySelector('p')!.textContent = `${this.persons} assigned`; // 게터를 활용하여 유연한 사고
+  }
+  configure() {}
 }
 
 class ProjectList extends Component<HTMLDivElement, HTMLElement> {
@@ -169,7 +228,7 @@ class ProjectList extends Component<HTMLDivElement, HTMLElement> {
      *
      * 전 코드와 다른점은 많지만 같은 로직이다.
      */
-    super('project-list', false, `${type}-projests`);
+    super('project-list', 'app', false, `${type}-projests`);
     this.assignedProjects = [];
 
     projectState.addListener((projects: Project[]) => {
@@ -181,10 +240,11 @@ class ProjectList extends Component<HTMLDivElement, HTMLElement> {
         }
         return prjItem.status === ProjectStatus.Finished; // 그게 아니면 나는 finished야
       });
-      this.assignedProjects = projects;
+      this.assignedProjects = filterProjects;
       this.renderProjects();
     });
 
+    this.configure();
     this.renderContent();
   }
 
@@ -196,10 +256,12 @@ class ProjectList extends Component<HTMLDivElement, HTMLElement> {
     // 중복을 피하기 위해 모든 목록 요소의 항목을 제거하여, 불필요한 리렌더링을 피함
     listElement.innerHTML = '';
 
+    /**
+     * assignedProjects의 인덱스 값들을 가져오는데
+     * ProjectItem
+     */
     for (const projectItem of this.assignedProjects) {
-      const listItem = document.createElement('li');
-      listItem.textContent = projectItem.title;
-      listElement.appendChild(listItem);
+      new ProjectItem(this.element.querySelector('ul')!.id, projectItem);
     }
   }
 
@@ -227,7 +289,7 @@ class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {
   formElement = this.element; // formElement 라는 것을 명시적으로 알려주기 위해 추상클래스인 컴포넌트 내부의 private 변수인 this.element를 가져옴
 
   constructor() {
-    super('project-input', true, `user-input`);
+    super('project-input', 'app', true, `user-input`);
 
     this.titleInputElement = this.formElement.querySelector(
       '#title'
@@ -240,7 +302,6 @@ class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {
     ) as HTMLInputElement;
 
     this.configure();
-    this.attach();
   }
 
   private gatherUserInput(): [string, string, number] | void {
@@ -290,10 +351,6 @@ class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {
     this.titleInputElement.value = '';
     this.descriptionInputElement.value = '';
     this.peopleInputElement.value = '';
-  }
-
-  attach() {
-    appDiv.insertAdjacentElement('afterbegin', this.formElement);
   }
 
   configure() {

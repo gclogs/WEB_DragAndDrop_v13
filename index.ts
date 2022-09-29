@@ -6,8 +6,8 @@ import './style.css';
  * dragEndHandler() : 드래깅이 '끝나면' 이벤트 발생
  */
 interface Draggable {
-  dragStartHandler(event: Event): void;
-  dragEndHandler(event: Event): void;
+  dragStartHandler(event: DragEvent): void;
+  dragEndHandler(event: DragEvent): void;
 }
 
 /**
@@ -16,9 +16,9 @@ interface Draggable {
  * dragLeaveHanlder() : 비주얼 피드백을 주고자 할때 사용 / 드롭이 일어나지 않고 취소되거나 사용자가 해당 요소를 없앨떄 핸들링
  */
 interface DragTarget {
-  dragOverHandler();
-  dragHandler();
-  dragLeaveHandler();
+  dragOverHandler(event: DragEvent);
+  dragHandler(event: DragEvent);
+  dragLeaveHandler(event: DragEvent);
 }
 
 enum ProjectStatus {
@@ -69,6 +69,20 @@ class ProjectState {
 
     this.projects.push(newProject);
 
+    for (const listenerFn of this.listeners) {
+      listenerFn(this.projects.slice());
+    }
+  }
+
+  moveProject(projectId: string, newStatus: ProjectStatus) {
+    const project = this.projects.find((prj) => prj.id === projectId);
+    if (project && project.status !== newStatus) {
+      project.status = newStatus;
+      this.updateListeners();
+    }
+  }
+
+  private updateListeners() {
     for (const listenerFn of this.listeners) {
       listenerFn(this.projects.slice());
     }
@@ -224,7 +238,8 @@ class ProjectItem
   }
 
   dragStartHandler(event: DragEvent) {
-    console.log(event);
+    event.dataTransfer!.setData('text/plain', this.project.id); // 데이터 전송 프로퍼티에서 드래그 이벤트를 장착
+    event.dataTransfer!.effectAllowed = 'move'; // 커서의 모양을 조절하고 어떤 요소를 A to B까지 움직이고자 하는 것을 보여줌 -> 즉 드롭을 하면 원래 장소에서 목록을 제거하고 새로운 장소에 더함
   }
   dragEndHandler(_: Event) {
     console.log('DragEnd');
@@ -260,21 +275,28 @@ class ProjectList
     super('project-list', 'app', false, `${type}-projests`);
     this.assignedProjects = [];
 
-    projectState.addListener((projects: Project[]) => {
-      // 원하는 프로젝트에 출력하기 위해서 active에 들어갈 것인지 finished에 들어갈 것인지 필터링을 할거임
-      const filterProjects = projects.filter((prjItem) => {
-        if (this.type === 'active') {
-          // 목록의 타입이 active라면
-          return prjItem.status === ProjectStatus.Active; // 나 건들지마
-        }
-        return prjItem.status === ProjectStatus.Finished; // 그게 아니면 나는 finished야
-      });
-      this.assignedProjects = filterProjects;
-      this.renderProjects();
-    });
-
     this.configure();
     this.renderContent();
+  }
+
+  /**
+   * this.element의 <ul> 요소에 접근하여 droppable 클래스를 '추가'하거나 '삭제'하는 핸들러
+   *
+   * dragOverHandler() : 드래그 오버시 droppable 이라는 클래스를 '추가'
+   * dragLeaveHandler() : 드래그 리브시 droppable 이라는 클래스를 '삭제'
+   */
+  dragOverHandler(event: DragEvent) {
+    if (event.dataTransfer && event.dataTransfer.types[0] === 'text/plain') {
+      // 드롭핑시 'text/plain' 타입을 가진 요소만 허용
+      event.preventDefault();
+      const listEl = this.element.querySelector('ul')!;
+      listEl.classList.add('droppable');
+    }
+  }
+  dragHandler(event: DragEvent) {}
+  dragLeaveHandler(event: DragEvent) {
+    const listEl = this.element.querySelector('ul')!;
+    listEl.classList.remove('droppable');
   }
 
   private renderProjects() {
@@ -308,7 +330,27 @@ class ProjectList
    * 컴포넌트 클래스 내부의 메소드이고, 추상 클래스라 꼭 필요한 추상 메서드이지만
    * ProjectList의 클래스 내부에서 그닥 중요하지 않다면, 로직 작성 없이 생성만 해두자
    */
-  configure() {}
+  configure() {
+    this.element.addEventListener('dragover', this.dragOverHandler);
+    this.element.addEventListener('dragleave', this.dragLeaveHandler);
+    this.element.addEventListener('drop', this.dragHandler);
+
+    /**
+     * 생성자 함수에 있던 로직을 가져옴
+     */
+    projectState.addListener((projects: Project[]) => {
+      // 원하는 프로젝트에 출력하기 위해서 active에 들어갈 것인지 finished에 들어갈 것인지 필터링을 할거임
+      const filterProjects = projects.filter((prjItem) => {
+        if (this.type === 'active') {
+          // 목록의 타입이 active라면
+          return prjItem.status === ProjectStatus.Active; // 나 건들지마
+        }
+        return prjItem.status === ProjectStatus.Finished; // 그게 아니면 나는 finished야
+      });
+      this.assignedProjects = filterProjects;
+      this.renderProjects();
+    });
+  }
 }
 
 class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {

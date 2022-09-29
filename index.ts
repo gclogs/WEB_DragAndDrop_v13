@@ -1,10 +1,6 @@
 // Import stylesheets
 import './style.css';
 
-// Write TypeScript code!
-const appDiv: HTMLElement = document.getElementById('app');
-appDiv.innerHTML = `<h1>TypeScript Starter</h1>`;
-
 /**
  * dragStartHandler() : 드래깅이 '시작되면' 이벤트 발생
  * dragEndHandler() : 드래깅이 '끝나면' 이벤트 발생
@@ -20,9 +16,9 @@ interface Draggable {
  * dragLeaveHanlder() : 비주얼 피드백을 주고자 할때 사용 / 드롭이 일어나지 않고 취소되거나 사용자가 해당 요소를 없앨떄 핸들링
  */
 interface DragTarget {
-  dragOverHandler(): void;
-  dragHandler(): void;
-  dragLeaveHandler(): void;
+  dragOverHandler();
+  dragHandler();
+  dragLeaveHandler();
 }
 
 enum ProjectStatus {
@@ -248,7 +244,10 @@ class ProjectItem
   configure() {}
 }
 
-class ProjectList extends Component<HTMLDivElement, HTMLElement> {
+class ProjectList
+  extends Component<HTMLDivElement, HTMLElement>
+  implements DragTarget
+{
   assignedProjects: Project[];
 
   constructor(private type: 'active' | 'finished') {

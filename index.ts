@@ -5,6 +5,26 @@ import './style.css';
 const appDiv: HTMLElement = document.getElementById('app');
 appDiv.innerHTML = `<h1>TypeScript Starter</h1>`;
 
+/**
+ * dragStartHandler() : 드래깅이 '시작되면' 이벤트 발생
+ * dragEndHandler() : 드래깅이 '끝나면' 이벤트 발생
+ */
+interface Draggable {
+  dragStartHandler(event: Event): void;
+  dragEndHandler(event: Event): void;
+}
+
+/**
+ * dragOverHandler() : 드래그 오버시 발생하는 이벤트 (드래핑시 항상 일어남)
+ * dragHandler() : 드롭 됐을 때의 상황을 보여줌
+ * dragLeaveHanlder() : 비주얼 피드백을 주고자 할때 사용 / 드롭이 일어나지 않고 취소되거나 사용자가 해당 요소를 없앨떄 핸들링
+ */
+interface DragTarget {
+  dragOverHandler(): void;
+  dragHandler(): void;
+  dragLeaveHandler(): void;
+}
+
 enum ProjectStatus {
   Active,
   Finished,
@@ -182,7 +202,10 @@ abstract class Component<T extends HTMLElement, U extends HTMLElement> {
  * 이 아이템은 active 박스에서 처음 생성 되지만,
  * 드래그를 통해 finished 박스 안에도 들어갈 수 있음
  */
-class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
+class ProjectItem
+  extends Component<HTMLUListElement, HTMLLIElement>
+  implements Draggable
+{
   private project: Project;
 
   /**
@@ -202,6 +225,13 @@ class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
 
     this.configure();
     this.renderContent();
+  }
+
+  dragStartHandler(event: DragEvent) {
+    console.log(event);
+  }
+  dragEndHandler(_: Event) {
+    console.log('DragEnd');
   }
 
   /**
